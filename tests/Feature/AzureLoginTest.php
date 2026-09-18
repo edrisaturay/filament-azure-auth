@@ -134,6 +134,10 @@ it('handles a deleted linked user without authenticating', function () {
 });
 
 it('does not bypass enabled application MFA', function () {
+    if (! interface_exists(MultiFactorAuthenticationProvider::class)) {
+        $this->markTestSkipped('Filament 3 has no native MFA provider API.');
+    }
+
     config(['filament-azure-auth.link_existing_users' => true]);
     User::create(['name' => 'Existing', 'email' => 'person@example.org', 'password' => 'unused']);
     $mfa = Mockery::mock(MultiFactorAuthenticationProvider::class);

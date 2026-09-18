@@ -6,17 +6,23 @@ Microsoft Entra ID (formerly Azure Active Directory) sign-in for Filament panels
 
 ## Status and compatibility
 
-This is a local, unpublished package. The installation instructions below use a Composer path repository. A plain `composer require edrisaturay/filament-azure-auth` will not work until the package is available from a configured Composer repository.
+The package is available on [Packagist](https://packagist.org/packages/edrisaturay/filament-azure-auth) and [GitHub](https://github.com/edrisaturay/filament-azure-auth).
 
-| Component | Requirement | Verified version |
-| --- | --- | --- |
-| PHP | `^8.3`, subject to the selected Laravel version | Use the PHP version required by your application |
-| Laravel | `^12.0` or `^13.0` | 13.32.0 |
-| Filament | `^5.0` | 5.8.2 |
-| Filament Socialite | `^3.2.1` | 3.2.1 |
-| Microsoft Azure provider | `^5.0` | 5.2.1 |
+Stable releases are published as version tags from the `main` branch. Install the stable `^1.0` release below. Composer calls the untagged development branch `dev-main`; the branch name itself remains `main`.
 
-Laravel 12 is permitted by the dependency constraints but has not been tested in this package's current verification run. Filament 3 and 4 are not supported by this release.
+### Compatibility matrix
+
+| Filament | Laravel 11 | Laravel 12 | Laravel 13 |
+| --- | --- | --- | --- |
+| 3 | Allowed by package constraints, unverified | Tested | Unsupported by the Socialite dependency |
+| 4 | Allowed by package constraints, unverified | Tested | Tested |
+| 5 | Allowed by package constraints, unverified | Tested | Tested |
+
+Laravel 11 testing remains unverified: Composer blocks its available framework releases because of security advisories. No advisory bypass is included in this package or the installation instructions. A declared dependency constraint is not a security endorsement or a passed compatibility test.
+
+Filament 3 uses Filament Socialite `^2.4`, which currently allows Laravel only through version 12. Filament 4 and 5 use Filament Socialite `^3.2.1`. Composer selects the appropriate dependency for the consuming application; not every cross-combination of the listed major versions is installable.
+
+The package permits PHP `^8.2`. The actual minimum also depends on the selected Laravel, Filament, and transitive dependency versions. The recorded compatibility tests ran on PHP 8.4.22.
 
 ## Features
 
@@ -35,36 +41,31 @@ Laravel 12 is permitted by the dependency constraints but has not been tested in
 
 Run these commands from the consuming Laravel application's root.
 
-### 1. Make the package available to Composer
-
-For the current workspace, the package is already at `packages/filament-azure-auth`. In another application, copy the package source into the same relative directory, excluding its `vendor` directory and development artifacts.
-
-Merge this entry into the application's `composer.json`. Preserve any existing repositories:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/filament-azure-auth",
-            "options": {
-                "symlink": false,
-                "versions": {
-                    "edrisaturay/filament-azure-auth": "dev-main"
-                }
-            }
-        }
-    ]
-}
-```
-
-Then install:
+### 1. Install from Packagist
 
 ```bash
-composer require edrisaturay/filament-azure-auth:dev-main
+composer require edrisaturay/filament-azure-auth:^1.0
 ```
 
-The explicit version alias lets Composer install the unpublished source without changing the application's global minimum stability. With this path repository arrangement, include the package source in deployment artifacts so Composer can install it on the build server.
+No custom repository or copied package directory is needed. The `^1.0` constraint selects a stable release and accepts compatible updates within version 1. Keep the application's default stable minimum stability.
+
+If the application previously required `dev-main`, run the same `composer require` command with `--with-all-dependencies` to replace that constraint with `^1.0`.
+
+For an application already using a stable version 1 release:
+
+```bash
+composer update edrisaturay/filament-azure-auth --with-all-dependencies
+```
+
+Review the lockfile changes. If an existing application's pinned dependencies prevent installation, inspect the conflict first:
+
+```bash
+composer why-not edrisaturay/filament-azure-auth 1.0.0
+```
+
+Do not use `--ignore-platform-reqs` to force an unsupported combination. If Composer still reports this package as Filament 5 only, ensure the compatibility changes have reached the package repository and Packagist, then retry after refreshing Composer's cache if necessary.
+
+For local package development, a Composer path repository remains an option, but it is not needed for the published installation.
 
 ### 2. Publish configuration and migrate
 
@@ -254,7 +255,7 @@ Existing DNA `socialite_users` rows are not imported automatically. Plan an expl
 ## MFA, logout, and multiple panels
 
 - **Microsoft MFA:** Entra controls its own MFA and Conditional Access challenges during Microsoft sign-in.
-- **Filament MFA:** If the local user has an enabled provider in the panel's native Filament MFA configuration, this package refuses Microsoft login and directs the user to standard sign-in. It does not yet continue into Filament's MFA challenge. This check does not claim integration with every third-party MFA plugin.
+- **Filament MFA:** On Filament 4 and 5, if the local user has an enabled provider in the panel's native Filament MFA configuration, this package refuses Microsoft login and directs the user to standard sign-in. It does not yet continue into Filament's MFA challenge. Filament 3 has no native MFA provider API, so that API is not called there. Third-party MFA plugins require a separately reviewed integration; this package does not claim to enforce their challenges.
 - **Logout:** The host application's existing logout behavior remains responsible for ending its session. The package does not perform Microsoft global logout or implement Azure App Service Easy Auth logout.
 - **Multiple panels:** The plugin resolves the user model from each panel's configured auth guard. Azure credentials and the redirect URI are application-wide. The straightforward documented setup uses one panel. Multiple panels, separate credentials per panel, and cross-domain sessions have not been verified by this package's tests.
 
@@ -262,7 +263,7 @@ Password login remains available. This release does not provide a Microsoft-only
 
 ## Deployment
 
-1. Include the package source in the build when using a path repository.
+1. Commit the consuming application's updated `composer.json` and `composer.lock`. With the Packagist installation, no local package directory is required.
 2. Install application dependencies with your normal production Composer workflow.
 3. Supply this environment's Azure configuration and register its exact Web redirect URI.
 4. Publish configuration and migrations if not already committed to the consuming application.
@@ -304,7 +305,17 @@ composer test
 
 Tests use Orchestra Testbench, an in-memory SQLite database, and fake Microsoft HTTP responses. They do not require Azure credentials or contact Microsoft.
 
-The current verification run passed **22 tests and 230 assertions** on Laravel 13.32.0 and Filament 5.8.2. Coverage includes redirect configuration, OAuth state, account policies, provisioning, panel denial, tenant isolation, stable identity resolution, stale links, native MFA refusal, login-button rendering, installer preservation, Microsoft failures, and throttling.
+The compatibility suite covers redirect configuration, OAuth state, account policies, provisioning, panel denial, tenant isolation, stable identity resolution, stale links, native MFA refusal, login-button rendering, installer preservation, Microsoft failures, and throttling.
+
+| Filament version | Laravel version | Result |
+| --- | --- | --- |
+| 3.3.55 | 12.69.2 | 21 passed; native MFA test not applicable |
+| 4.13.2 | 12.69.2 | 22 passed, 230 assertions |
+| 4.13.2 | 13.32.0 | 22 passed, 230 assertions |
+| 5.8.2 | 12.69.2 | 22 passed, 230 assertions |
+| 5.8.2 | 13.32.0 | 22 passed, 230 assertions |
+
+Each combination was installed and tested in an isolated directory on PHP 8.4.22. Filament 3 skips only the test for the native MFA API it does not provide. Laravel 11 was not installed because of Composer's advisory block. Filament 3 with Laravel 13 failed dependency resolution and is not supported.
 
 The live DNA login was observed separately. The new package still needs a real Entra round-trip in a consuming UAT application before production rollout. Test the consuming application's complete suite after integration:
 
@@ -312,6 +323,10 @@ The live DNA login was observed separately. The new package still needs a real E
 php artisan test --compact
 ```
 
-## Distribution
+## Releases and distribution
 
-The package has not been published to Packagist or a standalone Git repository. Before distribution, choose a license, create the intended repository, verify supported version combinations, and tag a release. No distribution license has been assigned by this implementation.
+Source: [edrisaturay/filament-azure-auth](https://github.com/edrisaturay/filament-azure-auth). Package: [Packagist listing](https://packagist.org/packages/edrisaturay/filament-azure-auth).
+
+Push changes to the standalone package repository and confirm Packagist has synchronized the new commit before testing an update in another application. A deployment using `composer install` retains the revision in its lockfile; use a deliberate `composer update` to adopt a newer package revision.
+
+Version `v1.0.0` is the first stable release. Future stable releases are published by tagging tested commits on `main`; `dev-main` remains available only for deliberate development-branch testing. The package's current Composer manifest has no license declaration; choose and add the intended license before representing it as licensed open-source software.

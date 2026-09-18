@@ -15,7 +15,11 @@ class EnsurePanelAccess
             throw new LoginDenied('Your account does not have access to this panel. Contact your administrator.');
         }
 
-        foreach ($panel->getMultiFactorAuthenticationProviders() as $mfa) {
+        $providers = method_exists($panel, 'getMultiFactorAuthenticationProviders')
+            ? $panel->getMultiFactorAuthenticationProviders()
+            : [];
+
+        foreach ($providers as $mfa) {
             if ($mfa->isEnabled($user)) {
                 throw new LoginDenied('Use the standard sign-in form to complete your application two-factor authentication.');
             }

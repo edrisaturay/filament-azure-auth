@@ -28,6 +28,7 @@ use Laravel\Socialite\Contracts\Factory;
 use Laravel\Socialite\SocialiteServiceProvider;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
+use RyanChandler\BladeCaptureDirective\BladeCaptureDirectiveServiceProvider;
 use SocialiteProviders\Azure\Provider;
 use SocialiteProviders\Manager\Config;
 use SocialiteProviders\Manager\ServiceProvider;
@@ -36,7 +37,8 @@ class TestCase extends Orchestra
 {
     protected function getPackageProviders($app): array
     {
-        return [
+        return array_values(array_filter([
+            BladeCaptureDirectiveServiceProvider::class,
             BladeIconsServiceProvider::class,
             BladeHeroiconsServiceProvider::class,
             SupportServiceProvider::class,
@@ -54,7 +56,7 @@ class TestCase extends Orchestra
             AzureAuthServiceProvider::class,
             AdminPanelProvider::class,
             FilamentSocialiteServiceProvider::class,
-        ];
+        ], class_exists(...)));
     }
 
     protected function defineEnvironment($app): void
